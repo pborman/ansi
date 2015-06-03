@@ -1,0 +1,1 @@
+The ansi package provides ANSI escape sequence encoding/decoding according to ECMA-48.  It also provides an easy to use io.Writer interface for writing colorized text.
