@@ -32,6 +32,31 @@ type S struct {
 	Params []string // parameters
 }
 
+// String returns s as a string.  If s has no type or s.Code is unrecognized
+// then s.Code is returned (s represents plain text, or there is an error).
+// If s.Code is recognized, the original escape sequence is constructed and
+// returned (single byte CSI sequences are translated to multi-byte sequences).
+func (s *S) String() string {
+	if s.Type == "" {
+		return string(s.Code)
+	}
+	seq := s.Code.S()
+	if seq == nil {
+		return string(s.Code)
+	}
+
+	switch {
+	case s.Type == "C1":
+		// C1 sequences parameters follow the sequence
+		return string(seq.Type) + string(seq.Code) + strings.Join(s.Params, ";")
+	case len(s.Code) > 1 && (lookup[s.Code[1]]&sos) == sos:
+		// SOS sequence parameters follow the sequence followed by ST
+		return string(seq.Type) + string(seq.Code) + strings.Join(s.Params, ";") + string(ST)
+	default:
+		return string(seq.Type) + strings.Join(s.Params, ";") + string(seq.Code)
+	}
+}
+
 const (
 	sos = (1 << iota) // start of string
 	st                // string terminator
@@ -61,9 +86,9 @@ var (
 // ms returns the bytes of in as a Name
 func ms(in ...byte) Name { return Name(in) }
 
-// Decode decodes the next sequence in in, returning the bytes following
-// the sequence.  The sequence S, and any possible error.  Single byte C1
-// sequences are expanded to two byte sequences
+// Decode decodes the next sequence in in, returning the bytes following the
+// sequence, the sequence s, and any possible error.  The value of s will never
+// be nil.  Single byte C1 sequences are expanded to two byte sequences.
 func Decode(in []byte) (out []byte, s *S, err error) {
 	if len(in) == 0 {
 		return nil, nil, nil

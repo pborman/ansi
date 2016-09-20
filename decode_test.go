@@ -6,6 +6,7 @@ package ansi
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -15,14 +16,9 @@ func TestDecode(t *testing.T) {
 		rem string
 		lu  *Sequence
 		out *S
+		s   string // what out.String should return, if not in.
 		err error
 	}{
-		{
-			in: "abc",
-			out: &S{
-				Code: "abc",
-			},
-		},
 		{
 			in: "abc",
 			out: &S{
@@ -52,6 +48,7 @@ func TestDecode(t *testing.T) {
 		},
 		{
 			in: "\202", // One byte version of "\033B"
+			s:  "\033B",
 			out: &S{
 				Code: "\033B",
 				Type: "C1",
@@ -87,6 +84,7 @@ func TestDecode(t *testing.T) {
 		},
 		{
 			in: "\033[A",
+			s:  "\033[1A",
 			out: &S{
 				Code:   "\033[A",
 				Type:   "CSI",
@@ -135,6 +133,7 @@ func TestDecode(t *testing.T) {
 		},
 		{
 			in: "\033[42 c",
+			s:  "\033[42;32 c",
 			out: &S{
 				Code:   "\033[ c",
 				Type:   "CSI",
@@ -280,6 +279,14 @@ func TestDecode(t *testing.T) {
 		lu := Table[out.Code]
 		if lu != tt.lu {
 			t.Errorf("%q: got lu %#v, want %#v", tt.in, lu, tt.lu)
+		}
+		if tt.s == "" {
+			tt.s = strings.TrimSuffix(tt.in, tt.rem)
+		}
+		if err == nil {
+			if s := out.String(); s != tt.s {
+				t.Errorf("%q: String got %q, want %q", tt.in, s, tt.s)
+			}
 		}
 	}
 }
