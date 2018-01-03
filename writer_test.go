@@ -6,6 +6,7 @@ package ansi
 
 import (
 	"bytes"
+	"io"
 	"testing"
 )
 
@@ -166,5 +167,31 @@ func TestPrint(t *testing.T) {
 	got = buf.String()
 	if want != got {
 		t.Errorf("Println got %q, want %q", got, want)
+	}
+}
+
+// Writer that "writes" (discards) a limited number of bytes.
+type LimitWriter struct{ limit int }
+
+func (w *LimitWriter) Write(p []byte) (n int, err error) {
+	if w.limit < len(p) {
+		n = w.limit
+		w.limit = 0
+		err = io.EOF
+		return
+	}
+	w.limit -= len(p)
+	return len(p), nil
+}
+
+func TestLength(t *testing.T) {
+	var buf bytes.Buffer
+	if n, err := NewWriter(&buf).Red().Print("hello"); err != nil || n != len("hello") {
+		t.Errorf("Write returned (%v, %v), want (%v, %v)", n, err, len("hello"), nil)
+	}
+
+	limited := LimitWriter{8} // <esc>[31mhello gets truncated after the first l
+	if n, err := NewWriter(&limited).Red().Print("hello"); err != io.EOF || n != len("hel") {
+		t.Errorf("Write returned (%v, %v), want (%v, %v)", n, err, len("hel"), io.EOF)
 	}
 }
