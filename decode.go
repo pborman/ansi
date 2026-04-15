@@ -13,13 +13,13 @@ import (
 // An S contains a decoded escape sequence.  There are several types of
 // escape sequences:
 //
-//   "C0"  - Single Control Set 0 character 0x00 - 0x1f
-//   "C1"  - Single Control Set 1 character ESC 0x40 - 0x5f / 0x80 - 0x9f
-//   "ICF" - Independent Control Function ESC 0x6f - 0x7e
-//   "ESC" - Other escape sequence
-//   "CSI" - Standard ANSI Escape Sequence ESC [ ...
-//   "CS"  - Control String
-//   ""    - String of regular text (no ESC or C1 characters)
+//	"C0"  - Single Control Set 0 character 0x00 - 0x1f
+//	"C1"  - Single Control Set 1 character ESC 0x40 - 0x5f / 0x80 - 0x9f
+//	"ICF" - Independent Control Function ESC 0x6f - 0x7e
+//	"ESC" - Other escape sequence
+//	"CSI" - Standard ANSI Escape Sequence ESC [ ...
+//	"CS"  - Control String
+//	""    - String of regular text (no ESC or C1 characters)
 //
 // CSI escape sequences may contain some number of parameters.  The parsed
 // parameters are provided in Parmas.  Control Strings, such as OSC, have the
@@ -30,6 +30,7 @@ type S struct {
 	Code   Name     // The escape sequences sans parameters
 	Type   string   // The type of escape sequence
 	Params []string // parameters
+	Error  error    // The error encountered at this point.
 }
 
 // String returns s as a string.  If s has no type or s.Code is unrecognized
@@ -87,8 +88,9 @@ var (
 func ms(in ...byte) Name { return Name(in) }
 
 // Decode decodes the next sequence in in, returning the bytes following the
-// sequence, the sequence s, and any possible error.  The value of s will never
-// be nil.  Single byte C1 sequences are expanded to two byte sequences.
+// sequence, the sequence s, and any possible error.  The value of s will only
+// be nil if in is empty.  Single byte C1 sequences are expanded to two byte
+// sequences.
 func Decode(in []byte) (out []byte, s *S, err error) {
 	if len(in) == 0 {
 		return nil, nil, nil
@@ -131,6 +133,9 @@ EscapeSequence:
 	// empty then there is exactly one empty parameter.
 	var params []byte
 	defer func() {
+		defer func() {
+			s.Error = err
+		}()
 		if s == nil {
 			return
 		}
@@ -227,6 +232,12 @@ EscapeSequence:
 	// Cannot contain SOS
 	case (lookup[in[1]] & sos) == sos:
 		t := bytes.Index(in[2:], []byte{'\033', '\\'})
+		bt := bytes.Index(in[2:], []byte{'\a'})
+		ts := 2
+		if bt >= 0 && (t < 0 || bt < t) {
+			t = bt
+			ts = 1
+		}
 		var err error
 		if t < 0 {
 			t = len(in) - 2
@@ -239,11 +250,11 @@ EscapeSequence:
 			err = FoundSOS
 		}
 		params = d
-		// If ere not returning NoST then we need to consume
-		// the two bytes that terminated us
+		// If we are not returning NoST then we need to consume
+		// the bytes that terminated us.
 		// Question: should we consume an SOS?
 		if err != NoST {
-			t += 2
+			t += ts
 		}
 		return in[2+t:], &S{Code: ms(in[:2]...), Type: "CS"}, err
 
@@ -300,4 +311,20 @@ Next:
 	// There was nothing following the intermediate bytes
 	s.Code += Name(in)
 	return nil, s, IncompleteCSI
+}
+
+// DecodeAll returns in as a slice of S.
+// All errors are reported in the returned S structures.
+func DecodeAll(in []byte) []*S {
+	var ss []*S
+
+	for {
+		var s *S
+		in, s, _ = Decode(in)
+		if s == nil {
+			return ss
+		}
+		ss = append(ss, s)
+	}
+	return ss
 }
