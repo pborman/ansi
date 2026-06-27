@@ -586,6 +586,54 @@ func TestDecoderUTF8(t *testing.T) {
 	}
 }
 
+func TestDecoderUTF8Partial(t *testing.T) {
+	d := Decoder{UTF8: true}
+	shi := "世"
+
+	for _, in := range []string{"\xe4", "\xe4\xb8", "hello\xe4", "hello" + shi + "\xe4", "\xf0\x9f\x8c"} {
+		rem, s, err := d.Decode([]byte(in))
+		if err != nil {
+			t.Errorf("%q: got error %v", in, err)
+		}
+		if s != nil {
+			t.Errorf("%q: got s %+v, want nil", in, s)
+		}
+		if string(rem) != in {
+			t.Errorf("%q: got rem %q, want input unchanged", in, rem)
+		}
+	}
+
+	rem, s, err := d.Decode([]byte("hello" + shi))
+	if err != nil || s == nil || string(s.Code) != "hello"+shi || len(rem) != 0 {
+		t.Errorf("complete hello世: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	rem, s, err = d.Decode([]byte("hello\xe4\033[A"))
+	if err != nil || s == nil || string(s.Code) != "hello\xe4" || string(rem) != "\033[A" {
+		t.Errorf("partial not at end: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	rem, s, err = d.Decode([]byte("\x82"))
+	if err != nil || s == nil || s.Type != "C1" {
+		t.Errorf("orphan c1: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	buf := []byte("hello\xe4")
+	rem, s, err = d.Decode(buf)
+	if s != nil || string(rem) != "hello\xe4" {
+		t.Fatalf("first partial: rem=%q s=%v", rem, s)
+	}
+	rem, s, err = d.Decode(append(buf, '\xb8', '\x96'))
+	if err != nil || s == nil || string(s.Code) != "hello"+shi || len(rem) != 0 {
+		t.Errorf("after completion: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	all := d.DecodeAll([]byte("hello\xe4"))
+	if len(all) != 0 {
+		t.Errorf("DecodeAll partial: got %+v, want none", all)
+	}
+}
+
 func TestSFormat(t *testing.T) {
 	for _, tt := range []struct {
 		s    *S
