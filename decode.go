@@ -130,25 +130,37 @@ var (
 // ms returns the bytes of in as a Name
 func ms(in ...byte) Name { return Name(in) }
 
+// A Decoder decodes a raw byte stream to produce S structures.
+// A zero Decoder is backwards compatible with the package-level Decode
+// function.
+type Decoder struct {
+	UTF8 bool // if true, pass valid UTF8 strings through
+	C0   bool // if true, split out C0 characters
+}
+
 // Decode decodes the next sequence in in, returning the bytes following the
 // sequence, the sequence s, and any possible error.  The value of s will only
 // be nil if in is empty.  Single byte C1 sequences are expanded to two byte
 // sequences.
-func Decode(in []byte) (out []byte, s *S, err error) {
+func (d Decoder) Decode(in []byte) (out []byte, s *S, err error) {
 	if len(in) == 0 {
 		return nil, nil, nil
 	}
 
-	// TODO(borman): should we split out C0 characters?
-
 	// If the first byte is not an ESC or C1 code then return everything
-	// up to the first ESC or C1 code.
+	// up to the first ESC, C1, or (optionally) C0 code.
 	for x, c := range in {
 		if c == '\033' || (c&0xe0 == 0x80) {
 			if x > 0 {
 				return in[x:], &S{Code: Name(in[:x])}, nil
 			}
 			goto EscapeSequence
+		}
+		if d.C0 && c < 0x20 {
+			if x > 0 {
+				return in[x:], &S{Code: Name(in[:x])}, nil
+			}
+			return in[1:], &S{Code: ms(c), Type: "C0"}, nil
 		}
 	}
 
@@ -358,16 +370,30 @@ Next:
 
 // DecodeAll returns in as a slice of S.
 // All errors are reported in the returned S structures.
-func DecodeAll(in []byte) []*S {
+func (d Decoder) DecodeAll(in []byte) []*S {
 	var ss []*S
 
 	for {
 		var s *S
-		in, s, _ = Decode(in)
+		in, s, _ = d.Decode(in)
 		if s == nil {
 			return ss
 		}
 		ss = append(ss, s)
 	}
 	return ss
+}
+
+// Decode decodes the next sequence in in, returning the bytes following the
+// sequence, the sequence s, and any possible error.  The value of s will only
+// be nil if in is empty.  Single byte C1 sequences are expanded to two byte
+// sequences.
+func Decode(in []byte) (out []byte, s *S, err error) {
+	return Decoder{}.Decode(in)
+}
+
+// DecodeAll returns in as a slice of S.
+// All errors are reported in the returned S structures.
+func DecodeAll(in []byte) []*S {
+	return Decoder{}.DecodeAll(in)
 }

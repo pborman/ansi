@@ -298,6 +298,165 @@ func TestDecode(t *testing.T) {
 	}
 }
 
+func TestDecoderC0(t *testing.T) {
+	zero := Decoder{}
+	c0 := Decoder{C0: true}
+
+	for _, tt := range []struct {
+		in  string
+		rem string
+		lu  *Sequence
+		out *S
+		s   string
+		err error
+	}{
+		{
+			in: "abc\r\n",
+			out: &S{
+				Code: "abc\r\n",
+			},
+		},
+		{
+			in: "\tabc",
+			out: &S{
+				Code: "\tabc",
+			},
+		},
+	} {
+		rem, out, err := zero.Decode([]byte(tt.in))
+		if string(rem) != tt.rem {
+			t.Errorf("zero %q: got rem %q, want %q", tt.in, rem, tt.rem)
+		}
+		if err != tt.err {
+			t.Errorf("zero %q: got error %v, want %v", tt.in, err, tt.err)
+		}
+		if !reflect.DeepEqual(out, tt.out) {
+			t.Errorf("zero %q: got/want\n%+v\n%+v", tt.in, out, tt.out)
+		}
+	}
+
+	for _, tt := range []struct {
+		in  string
+		rem string
+		lu  *Sequence
+		out *S
+		s   string
+		err error
+	}{
+		{
+			in: "abc\r\n",
+			out: &S{
+				Code: "abc",
+			},
+			rem: "\r\n",
+		},
+		{
+			in: "\r",
+			out: &S{
+				Code: "\r",
+				Type: "C0",
+			},
+			lu: &CR_,
+			s:  "\r",
+		},
+		{
+			in: "\n",
+			out: &S{
+				Code: "\n",
+				Type: "C0",
+			},
+			lu: &LF_,
+			s:  "\n",
+		},
+		{
+			in: "\t",
+			out: &S{
+				Code: "\t",
+				Type: "C0",
+			},
+			lu: &HT_,
+			s:  "\t",
+		},
+		{
+			in: "\ta",
+			out: &S{
+				Code: "\t",
+				Type: "C0",
+			},
+			lu:  &HT_,
+			rem: "a",
+			s:   "\t",
+		},
+		{
+			in: "a\tb",
+			out: &S{
+				Code: "a",
+			},
+			rem: "\tb",
+		},
+		{
+			in: "\007",
+			out: &S{
+				Code: "\007",
+				Type: "C0",
+			},
+			lu: &BEL_,
+			s:  "\007",
+		},
+		{
+			in: "abc\033[A",
+			out: &S{
+				Code: "abc",
+			},
+			rem: "\033[A",
+		},
+	} {
+		rem, out, err := c0.Decode([]byte(tt.in))
+		if string(rem) != tt.rem {
+			t.Errorf("C0 %q: got rem %q, want %q", tt.in, rem, tt.rem)
+		}
+		if err != tt.err {
+			t.Errorf("C0 %q: got error %v, want %v", tt.in, err, tt.err)
+		}
+		want := tt.out
+		if tt.err != nil {
+			wantCopy := *tt.out
+			wantCopy.Error = tt.err
+			want = &wantCopy
+		}
+		if !reflect.DeepEqual(out, want) {
+			t.Errorf("C0 %q: got/want\n%+v\n%+v", tt.in, out, want)
+		}
+		if tt.lu != nil {
+			if lu := Table[out.Code]; lu != tt.lu {
+				t.Errorf("C0 %q: got lu %#v, want %#v", tt.in, lu, tt.lu)
+			}
+		}
+		if tt.s == "" && tt.err == nil {
+			tt.s = strings.TrimSuffix(tt.in, tt.rem)
+		}
+		if err == nil && tt.s != "" {
+			if got := out.String(); got != tt.s {
+				t.Errorf("C0 %q: String got %q, want %q", tt.in, got, tt.s)
+			}
+		}
+	}
+
+	all := c0.DecodeAll([]byte("a\nb"))
+	if len(all) != 3 {
+		t.Fatalf("DecodeAll: got %d sequences, want 3: %+v", len(all), all)
+	}
+	if all[0].Code != "a" || all[0].Type != "" {
+		t.Errorf("DecodeAll[0]: got %+v, want plain text %q", all[0], "a")
+	}
+	if all[1].Code != LF || all[1].Type != "C0" {
+		t.Errorf("DecodeAll[1]: got %+v, want LF C0", all[1])
+	}
+	if all[2].Code != "b" || all[2].Type != "" {
+		t.Errorf("DecodeAll[2]: got %+v, want plain text %q", all[2], "b")
+	}
+}
+
 func TestSFormat(t *testing.T) {
 	for _, tt := range []struct {
 		s    *S
