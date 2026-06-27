@@ -31,18 +31,18 @@ type state struct {
 // By using the attribute methods, the color and intensity of the text
 // written can be changed.  For example:
 //
-//   w.Red().Bold().WriteString("This is in bold red")
-//   w.Faint().WriteString("This text ix faint")
+//	w.Red().Bold().WriteString("This is in bold red")
+//	w.Faint().WriteString("This text ix faint")
 //
 // These writers may also be saved:
 //
-//  red := w.Red().Bold()
-//  blue := w.Blue()
-//  normal := w.Reset()
+//	red := w.Red().Bold()
+//	blue := w.Blue()
+//	normal := w.Reset()
 //
-//  red.WriteString("This is bold red text")
-//  normal.WriteString("This is normal text")
-//  blue.WriteString("This is blue text")
+//	red.WriteString("This is bold red text")
+//	normal.WriteString("This is normal text")
+//	blue.WriteString("This is blue text")
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{s: &state{w: w}}
 }
