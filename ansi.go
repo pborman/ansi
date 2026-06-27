@@ -7,13 +7,13 @@
 //
 // From the standard:
 //
-//   Free printed copies of this standard can be ordered from:
-//   ECMA
-//   114 Rue du Rhône CH-1204 Geneva Switzerland
-//   Fax: +41 22 849.60.01 Email: documents@ecma.ch
-//   Files of this Standard can be freely downloaded from the ECMA web site
-//   (www.ecma.ch). This site gives full information on ECMA, ECMA activities,
-//   ECMA Standards and Technical Reports.
+//	Free printed copies of this standard can be ordered from:
+//	ECMA
+//	114 Rue du Rhône CH-1204 Geneva Switzerland
+//	Fax: +41 22 849.60.01 Email: documents@ecma.ch
+//	Files of this Standard can be freely downloaded from the ECMA web site
+//	(www.ecma.ch). This site gives full information on ECMA, ECMA activities,
+//	ECMA Standards and Technical Reports.
 //
 // Portions of the standared are included in the documentation for this package.
 // The standard bears no copyright.
@@ -397,7 +397,7 @@ var CR_ = Sequence{
 //
 // The use of SO is defined in Standard ECMA-35.
 //
-// NOTE
+// # NOTE
 //
 // SO is used in 7-bit environments only; in 8-bit environments LOCKING-SHIFT
 // ONE (LS1) is used instead.
@@ -412,7 +412,7 @@ var SO_ = Sequence{
 //
 // The use of SI is defined in Standard ECMA-35.
 //
-// NOTE
+// # NOTE
 //
 // SI is used in 7-bit environments only; in 8-bit environments LOCKING-SHIFT
 // ZERO (LS0) is used instead.
@@ -437,7 +437,7 @@ var DLE_ = Sequence{
 // the basic mode of operation (see also DC2 and DC3), or any other device
 // control function not provided by other DCs.
 //
-// NOTE
+// # NOTE
 //
 // When used for data flow control, DC1 is sometimes called "X-ON".
 var DC1_ = Sequence{
@@ -463,7 +463,7 @@ var DC2_ = Sequence{
 // it is not required for this purpose, it may be used for any other device
 // control function not provided by other DCs.
 //
-// NOTE
+// # NOTE
 //
 // When used for data flow control, DC3 is sometimes called "X-OFF".
 var DC3_ = Sequence{
@@ -902,7 +902,7 @@ var DA_ = Sequence{
 // TABULATION STOP MODE (TSM). The character tabulation stop set by parameter
 // value 7 applies to the active line only.
 //
-// NOTE
+// # NOTE
 //
 // The control functions for area definition (DAQ, EPA, ESA, SPA, SSA) should
 // not be used within an SRS string or an SDS string.
@@ -1053,7 +1053,7 @@ var DSR_ = Sequence{
 // Pn1 specifies the dimension in the direction perpendicular to the line
 // orientation
 //
-// Pn2 specifies the dimension in the direction parallel to the line orientation
+// # Pn2 specifies the dimension in the direction parallel to the line orientation
 //
 // The unit in which the parameter value is expressed is that established by
 // the parameter value of SELECT SIZE UNIT (SSU).
@@ -1261,7 +1261,7 @@ var EMI_ = Sequence{
 // setting of the ERASURE MODE (ERM). The beginning of this string is indicated
 // by START OF GUARDED AREA (SPA).
 //
-// NOTE
+// # NOTE
 //
 // The control functions for area definition (DAQ, EPA, ESA, SPA, SSA) should
 // not be used within an SRS string or an SDS string.
@@ -1278,7 +1278,7 @@ var EPA_ = Sequence{
 // transferred to an auxiliary input/output device. The beginning of this
 // string is indicated by START OF SELECTED AREA (SSA).
 //
-// NOTE
+// # NOTE
 //
 // The control function for area definition (DAQ, EPA, ESA, SPA, SSA) should
 // not be used within an SRS string or an SDS string.
@@ -1344,7 +1344,7 @@ var FNT_ = Sequence{
 // indicate respectively the beginning and the end of a string of graphic
 // characters which are to be imaged as one single graphic symbol.
 //
-// NOTE
+// # NOTE
 //
 // GCC does not explicitly specify the relative sizes or placements of the
 // component parts of a composite graphic symbol. In the simplest case, two
@@ -1367,7 +1367,7 @@ var GCC_ = Sequence{
 // established by GRAPHIC SIZE SELECTION (GSS). The established values remain
 // in effect until the next occurrence of GSM or GSS in the data steam.
 //
-// Pn1 specifies the height as a percentage of the height established by GSS
+// # Pn1 specifies the height as a percentage of the height established by GSS
 //
 // Pn2 specifies the width as a percentage of the width established by GSS
 var GSM_ = Sequence{
@@ -1520,7 +1520,7 @@ var ICH_ = Sequence{
 // subsequent DEVICE CONTROL STRINGs (DCS). The specified purpose and format
 // remain in effect until the next occurrence of IDCS in the data stream.
 //
-// The parameter values are
+// # The parameter values are
 //
 // 1 reserved for use with the DIAGNOSTIC state of the STATUS REPORT TRANSFER
 // MODE (SRTM)
@@ -1994,7 +1994,7 @@ var PPR_ = Sequence{
 // one after another in the data stream but that are intended to be presented
 // in parallel with one another, usually in adjacent lines.
 //
-// The parameter values are
+// # The parameter values are
 //
 // 0 end of parallel texts
 //
@@ -2024,7 +2024,7 @@ var PPR_ = Sequence{
 // PTX with a parameter value of 0 indicates the end of the strings of text
 // intended to be presented in parallel with one another.
 //
-// NOTE
+// # NOTE
 //
 // PTX does not explicitly specify the relative placement of the strings of
 // principal and supplementary parallel texts, or the relative sizes of graphic
@@ -2214,7 +2214,7 @@ var RIS_ = Sequence{
 //
 // 22 ZERO DEFAULT MODE (ZDM) (see F.4.2 in annex F)
 //
-// NOTE
+// # NOTE
 //
 // Private modes may be implemented using private parameters, see 5.4.1 and 7.4.
 var RM_ = Sequence{
@@ -2359,7 +2359,7 @@ var SCI_ = Sequence{
 // is positive, i.e. counter-clockwise and applies to the normal presentation
 // of the graphic
 //
-// Rotation
+// # Rotation
 //
 // characters along the character path. The centre of rotation of the affected
 // graphic characters is not defined by this Standard.
@@ -2393,7 +2393,7 @@ var SCO_ = Sequence{
 //
 // 0 undefined (implementation-dependent)
 //
-// NOTE
+// # NOTE
 //
 // This may also permit the effect to take place after the next occurrence of
 // CR, NEL or any control function which initiates an absolute movement of the
@@ -2493,12 +2493,12 @@ var SD_ = Sequence{
 //
 // 2 start of a directed string; establish the direction right-to-left
 //
-// NOTE 1
+// # NOTE 1
 //
 // The effect of receiving a CVT, HT, SCP, SPD or VT control function within an
 // SDS string is not defined by this Standard.
 //
-// NOTE 2
+// # NOTE 2
 //
 // The control functions for area definition (DAQ, EPA, ESA, SPA, SSA) should
 // not be used within an SDS string.
@@ -2711,7 +2711,7 @@ var SEF_ = Sequence{
 // 6 characters per 25,4 mm 3 characters per 25,4 mm 9 characters per 50,8 mm 4
 // characters per 25,4 mm
 //
-// NOTE
+// # NOTE
 //
 // The usable combinations of parameter values are determined by the
 // implementation.
@@ -2903,7 +2903,7 @@ var SLS_ = Sequence{
 //
 // 22 ZERO DEFAULT MODE (ZDM) (see F.4.2 in annex F)
 //
-// NOTE
+// # NOTE
 //
 // Private modes may be implemented using private parameters, see 5.4.1 and 7.4.
 var SM_ = Sequence{
@@ -2935,7 +2935,7 @@ var SOS_ = Sequence{
 // the setting of the ERASURE MODE (ERM). The end of this string is indicated
 // by END OF GUARDED AREA (EPA).
 //
-// NOTE
+// # NOTE
 //
 // The control functions for area definition (DAQ, EPA, ESA, SPA, SSA) should
 // not be used within an SRS string or an SDS string.
@@ -2991,7 +2991,7 @@ var SPA_ = Sequence{
 //
 // 0 undefined (implementation-dependent)
 //
-// NOTE
+// # NOTE
 //
 // This may also permit the effect to take place after the next occurrence of
 // CR, FF or any control function which initiates an absolute movement of the
@@ -3056,9 +3056,9 @@ var SPH_ = Sequence{
 // in effect until the next occurrence of SET CHARACTER SPACING (SCS) or of
 // SELECT CHARACTER SPACING (SHS) in the data stream, see annex C.
 //
-// Pn1 specifies the line spacing
+// # Pn1 specifies the line spacing
 //
-// Pn2 specifies the character spacing
+// # Pn2 specifies the character spacing
 //
 // The unit in which the parameter values are expressed is that established by
 // the parameter value of SELECT SIZE UNIT (SSU).
@@ -3186,12 +3186,12 @@ var SRCS_ = Sequence{
 //
 // 1 beginning of a reversed string; reverse the direction.
 //
-// NOTE 1
+// # NOTE 1
 //
 // The effect of receiving a CVT, HT, SCP, SPD or VT control function within an
 // SRS string is not defined by this Standard.
 //
-// NOTE 2
+// # NOTE 2
 //
 // The control functions for area definition (DAQ, EPA, ESA, SPA, SSA) should
 // not be used within an SRS string.
@@ -3216,7 +3216,7 @@ var SRS_ = Sequence{
 // established by DEFINE AREA QUALIFICATION (DAQ), or by START OF GUARDED AREA
 // (SPA) and END OF GUARDED AREA (EPA).
 //
-// NOTE
+// # NOTE
 //
 // The control functions for area definition (DAQ, EPA, ESA, SPA, SSA) should
 // not be used within an SRS string or an SDS string.
@@ -3231,7 +3231,7 @@ var SSA_ = Sequence{
 // control functions are expressed. The established unit remains in effect
 // until the next occurrence of SSU in the data stream.
 //
-// The parameter values are
+// # The parameter values are
 //
 // 0 CHARACTER - The dimensions of this unit are device-dependent
 //
@@ -3603,12 +3603,12 @@ var VTS_ = Sequence{
 
 // C0 is the 3-character escape sequence designating and invoking the C0 set.
 //
-// NOTE 1
+// # NOTE 1
 //
 // The use of this escape sequence implies that all control functions of this
 // C0 set must be implemented.
 //
-// NOTE 2
+// # NOTE 2
 //
 // It is assumed that even with no invoked C0 set the control character ESCAPE
 // is available and is represented by bit combination 01/11.
