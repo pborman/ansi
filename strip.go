@@ -39,6 +39,12 @@ func Strip(in []byte) ([]byte, error) {
 	var err error
 	for len(in) > 0 {
 		in, s, err = Decode(in)
+		if s == nil {
+			if len(in) > 0 {
+				out = append(out, string(in))
+			}
+			break
+		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%q: %v", s, err))
 		}

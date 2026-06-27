@@ -1,6 +1,9 @@
 package ansi
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestStrip(t *testing.T) {
 	for _, tt := range []struct {
@@ -87,5 +90,29 @@ func TestStrip(t *testing.T) {
 		if out != tt.out {
 			t.Errorf("%q: got %q, want %q", tt.in, out, tt.out)
 		}
+	}
+}
+
+func TestStripPartialUTF8Tail(t *testing.T) {
+	// Mirrors Strip's loop with UTF8 enabled: a partial trailing UTF-8
+	// sequence is plain text and must be appended before stopping.
+	d := Decoder{UTF8: true}
+	in := []byte("hello\xe4")
+	var out []string
+	for len(in) > 0 {
+		var s *S
+		in, s, _ = d.Decode(in)
+		if s == nil {
+			if len(in) > 0 {
+				out = append(out, string(in))
+			}
+			break
+		}
+		if s.Type == "" {
+			out = append(out, string(s.Code))
+		}
+	}
+	if got := strings.Join(out, ""); got != "hello\xe4" {
+		t.Errorf("got %q, want %q", got, "hello\xe4")
 	}
 }

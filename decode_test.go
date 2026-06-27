@@ -457,6 +457,183 @@ func TestDecoderC0(t *testing.T) {
 	}
 }
 
+func TestDecoderUTF8(t *testing.T) {
+	zero := Decoder{}
+	utf8dec := Decoder{UTF8: true}
+	shi := "世"
+	earth := "🌍"
+	cafe := "café"
+
+	rem, out, err := zero.Decode([]byte("hello" + shi))
+	if err != nil {
+		t.Fatalf("zero hello世: %v", err)
+	}
+	if string(out.Code) != "hello\xe4\xb8" || string(rem) != "\x96" {
+		t.Errorf("zero hello世: got code %q rem %q", out.Code, rem)
+	}
+
+	for _, tt := range []struct {
+		d    Decoder
+		in   string
+		rem  string
+		lu   *Sequence
+		out  *S
+		s    string
+		err  error
+		name string
+	}{
+		{
+			name: "ascii",
+			d:    utf8dec,
+			in:   "hello",
+			out:  &S{Code: "hello"},
+		},
+		{
+			name: "cjk",
+			d:    utf8dec,
+			in:   "hello" + shi,
+			out:  &S{Code: Name("hello" + shi)},
+			s:    "hello" + shi,
+		},
+		{
+			name: "emoji",
+			d:    utf8dec,
+			in:   earth,
+			out:  &S{Code: Name(earth)},
+			s:    earth,
+		},
+		{
+			name: "latin1 supplement",
+			d:    utf8dec,
+			in:   cafe,
+			out:  &S{Code: Name(cafe)},
+			s:    cafe,
+		},
+		{
+			name: "orphan c1 byte",
+			d:    utf8dec,
+			in:   "\x82",
+			out:  &S{Code: "\033B", Type: "C1"},
+			lu:   &BPH_,
+			s:    "\033B",
+		},
+		{
+			name: "text then orphan c1",
+			d:    utf8dec,
+			in:   "abc\x82",
+			out:  &S{Code: "abc"},
+			rem:  "\x82",
+		},
+		{
+			name: "utf8 then escape",
+			d:    utf8dec,
+			in:   shi + "\033[A",
+			out:  &S{Code: Name(shi)},
+			rem:  "\033[A",
+			s:    shi,
+		},
+		{
+			name: "utf8 and c0",
+			d:    Decoder{UTF8: true, C0: true},
+			in:   "a\n" + shi,
+			out:  &S{Code: "a"},
+			rem:  "\n" + shi,
+		},
+	} {
+		rem, out, err := tt.d.Decode([]byte(tt.in))
+		if string(rem) != tt.rem {
+			t.Errorf("%s %q: got rem %q, want %q", tt.name, tt.in, rem, tt.rem)
+		}
+		if err != tt.err {
+			t.Errorf("%s %q: got error %v, want %v", tt.name, tt.in, err, tt.err)
+		}
+		want := tt.out
+		if tt.err != nil {
+			wantCopy := *tt.out
+			wantCopy.Error = tt.err
+			want = &wantCopy
+		}
+		if !reflect.DeepEqual(out, want) {
+			t.Errorf("%s %q: got/want\n%+v\n%+v", tt.name, tt.in, out, want)
+		}
+		if tt.lu != nil {
+			if lu := Table[out.Code]; lu != tt.lu {
+				t.Errorf("%s %q: got lu %#v, want %#v", tt.name, tt.in, lu, tt.lu)
+			}
+		}
+		if tt.s == "" && tt.err == nil {
+			tt.s = strings.TrimSuffix(tt.in, tt.rem)
+		}
+		if err == nil && tt.s != "" {
+			if got := out.String(); got != tt.s {
+				t.Errorf("%s %q: String got %q, want %q", tt.name, tt.in, got, tt.s)
+			}
+		}
+	}
+
+	all := utf8dec.DecodeAll([]byte("hello\033[A" + shi))
+	if len(all) != 3 {
+		t.Fatalf("DecodeAll: got %d sequences, want 3: %+v", len(all), all)
+	}
+	if all[0].Code != "hello" || all[0].Type != "" {
+		t.Errorf("DecodeAll[0]: got %+v, want plain text %q", all[0], "hello")
+	}
+	if all[1].Code != CUU || all[1].Type != "CSI" {
+		t.Errorf("DecodeAll[1]: got %+v, want CUU CSI", all[1])
+	}
+	if all[2].Code != Name(shi) || all[2].Type != "" {
+		t.Errorf("DecodeAll[2]: got %+v, want plain text %q", all[2], shi)
+	}
+}
+
+func TestDecoderUTF8Partial(t *testing.T) {
+	d := Decoder{UTF8: true}
+	shi := "世"
+
+	for _, in := range []string{"\xe4", "\xe4\xb8", "hello\xe4", "hello" + shi + "\xe4", "\xf0\x9f\x8c"} {
+		rem, s, err := d.Decode([]byte(in))
+		if err != nil {
+			t.Errorf("%q: got error %v", in, err)
+		}
+		if s != nil {
+			t.Errorf("%q: got s %+v, want nil", in, s)
+		}
+		if string(rem) != in {
+			t.Errorf("%q: got rem %q, want input unchanged", in, rem)
+		}
+	}
+
+	rem, s, err := d.Decode([]byte("hello" + shi))
+	if err != nil || s == nil || string(s.Code) != "hello"+shi || len(rem) != 0 {
+		t.Errorf("complete hello世: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	rem, s, err = d.Decode([]byte("hello\xe4\033[A"))
+	if err != nil || s == nil || string(s.Code) != "hello\xe4" || string(rem) != "\033[A" {
+		t.Errorf("partial not at end: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	rem, s, err = d.Decode([]byte("\x82"))
+	if err != nil || s == nil || s.Type != "C1" {
+		t.Errorf("orphan c1: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	buf := []byte("hello\xe4")
+	rem, s, err = d.Decode(buf)
+	if s != nil || string(rem) != "hello\xe4" {
+		t.Fatalf("first partial: rem=%q s=%v", rem, s)
+	}
+	rem, s, err = d.Decode(append(buf, '\xb8', '\x96'))
+	if err != nil || s == nil || string(s.Code) != "hello"+shi || len(rem) != 0 {
+		t.Errorf("after completion: rem=%q s=%+v err=%v", rem, s, err)
+	}
+
+	all := d.DecodeAll([]byte("hello\xe4"))
+	if len(all) != 0 {
+		t.Errorf("DecodeAll partial: got %+v, want none", all)
+	}
+}
+
 func TestSFormat(t *testing.T) {
 	for _, tt := range []struct {
 		s    *S

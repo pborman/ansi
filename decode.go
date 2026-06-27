@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 )
 
 // An S contains a decoded escape sequence.  There are several types of
@@ -130,27 +131,85 @@ var (
 // ms returns the bytes of in as a Name
 func ms(in ...byte) Name { return Name(in) }
 
+// utf8RuneLen returns the expected length of a UTF-8 encoding that starts
+// with first, or 0 if first cannot start a valid encoding.
+func utf8RuneLen(first byte) int {
+	switch {
+	case first < 0x80:
+		return 1
+	case first < 0xc0:
+		return 0
+	case first < 0xe0:
+		if first < 0xc2 {
+			return 0
+		}
+		return 2
+	case first < 0xf0:
+		return 3
+	case first < 0xf8:
+		return 4
+	default:
+		return 0
+	}
+}
+
+// utf8EndsPartial reports whether b ends with a valid but incomplete UTF-8
+// encoding. All trailing bytes must belong to the incomplete character.
+func utf8EndsPartial(b []byte) bool {
+	if len(b) == 0 {
+		return false
+	}
+	i := len(b) - 1
+	for i > 0 && b[i] >= 0x80 && b[i] <= 0xbf {
+		i--
+	}
+	if b[i] < 0x80 {
+		return false
+	}
+	if b[i] <= 0x9f {
+		return false
+	}
+	if b[i] <= 0xbf {
+		return false
+	}
+	n := utf8RuneLen(b[i])
+	if n == 0 || i+n <= len(b) {
+		return false
+	}
+	for j := i + 1; j < len(b); j++ {
+		if b[j]&0xc0 != 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
 // A Decoder decodes a raw byte stream to produce S structures.
 // A zero Decoder is backwards compatible with the package-level Decode
 // function.
 type Decoder struct {
-	UTF8 bool // if true, pass valid UTF8 strings through
+	UTF8 bool // if true, pass valid UTF-8 text through without treating 0x80-0x9f bytes as C1 controls
 	C0   bool // if true, split out C0 characters
 }
 
 // Decode decodes the next sequence in in, returning the bytes following the
-// sequence, the sequence s, and any possible error.  The value of s will only
-// be nil if in is empty.  Single byte C1 sequences are expanded to two byte
-// sequences.
+// sequence, the sequence s, and any possible error.  The value of s is nil
+// if in is empty, or if UTF8 is enabled and in ends with an incomplete
+// UTF-8 sequence (out is then the unmodified input).  Single byte C1
+// sequences are expanded to two byte sequences.
 func (d Decoder) Decode(in []byte) (out []byte, s *S, err error) {
 	if len(in) == 0 {
 		return nil, nil, nil
 	}
+	if d.UTF8 && utf8EndsPartial(in) {
+		return in, nil, nil
+	}
 
 	// If the first byte is not an ESC or C1 code then return everything
-	// up to the first ESC, C1, or (optionally) C0 code.
-	for x, c := range in {
-		if c == '\033' || (c&0xe0 == 0x80) {
+	// up to the first ESC, C1, valid UTF-8 code point, or (optionally) C0 code.
+	for x := 0; x < len(in); {
+		c := in[x]
+		if c == '\033' {
 			if x > 0 {
 				return in[x:], &S{Code: Name(in[:x])}, nil
 			}
@@ -162,6 +221,19 @@ func (d Decoder) Decode(in []byte) (out []byte, s *S, err error) {
 			}
 			return in[1:], &S{Code: ms(c), Type: "C0"}, nil
 		}
+		if d.UTF8 && c >= 0x80 {
+			if r, w := utf8.DecodeRune(in[x:]); r != utf8.RuneError {
+				x += w
+				continue
+			}
+		}
+		if c&0xe0 == 0x80 {
+			if x > 0 {
+				return in[x:], &S{Code: Name(in[:x])}, nil
+			}
+			goto EscapeSequence
+		}
+		x++
 	}
 
 	// If we get here the entire string has no escape sequences.
@@ -385,9 +457,7 @@ func (d Decoder) DecodeAll(in []byte) []*S {
 }
 
 // Decode decodes the next sequence in in, returning the bytes following the
-// sequence, the sequence s, and any possible error.  The value of s will only
-// be nil if in is empty.  Single byte C1 sequences are expanded to two byte
-// sequences.
+// sequence, the sequence s, and any possible error.  See Decoder.Decode.
 func Decode(in []byte) (out []byte, s *S, err error) {
 	return Decoder{}.Decode(in)
 }
