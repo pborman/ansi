@@ -5,6 +5,7 @@
 package ansi
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -273,8 +274,14 @@ func TestDecode(t *testing.T) {
 		if err != tt.err {
 			t.Errorf("%q: got error %v, want %v", tt.in, err, tt.err)
 		}
-		if !reflect.DeepEqual(out, tt.out) {
-			t.Errorf("%q: got/want\n%#v\n%#v", tt.in, out, tt.out)
+		want := tt.out
+		if tt.err != nil {
+			wantCopy := *tt.out
+			wantCopy.Error = tt.err
+			want = &wantCopy
+		}
+		if !reflect.DeepEqual(out, want) {
+			t.Errorf("%q: got/want\n%+v\n%+v", tt.in, out, want)
 		}
 		lu := Table[out.Code]
 		if lu != tt.lu {
@@ -287,6 +294,55 @@ func TestDecode(t *testing.T) {
 			if s := out.String(); s != tt.s {
 				t.Errorf("%q: String got %q, want %q", tt.in, s, tt.s)
 			}
+		}
+	}
+}
+
+func TestSFormat(t *testing.T) {
+	for _, tt := range []struct {
+		s    *S
+		fmt  string
+		want string
+	}{
+		{
+			s:    &S{Code: "abc"},
+			fmt:  "%+v",
+			want: `{Code: "abc"}`,
+		},
+		{
+			s:    &S{Code: CUU, Type: "CSI", Params: []string{"42"}},
+			fmt:  "%+v",
+			want: `{Code: "CUU", Type: "CSI", Params: "42"}`,
+		},
+		{
+			s:    &S{Code: CUU, Type: "CSI", Params: []string{"4", "2"}, Error: ExtraParameters},
+			fmt:  "%+v",
+			want: `{Code: "CUU", Type: "CSI", Params: "4", "2", Error: too many parameters for function}`,
+		},
+		{
+			s:    &S{Code: OSC, Type: "CS", Params: []string{"string"}, Error: NoST},
+			fmt:  "%+v",
+			want: `{Code: "OSC", Type: "CS", Params: "string", Error: control string missing string terminator}`,
+		},
+		{
+			s:    &S{Code: Name("\033\x10"), Type: "ESC", Error: UnknownEscape},
+			fmt:  "%+v",
+			want: `{Code: "\x1b\x10", Type: "ESC", Error: unknown escape sequence}`,
+		},
+		{
+			s:    &S{Code: CUU, Type: "CSI", Params: []string{"42"}},
+			fmt:  "%v",
+			want: "\033[42A",
+		},
+		{
+			s:    &S{Code: "hello"},
+			fmt:  "%s",
+			want: "hello",
+		},
+	} {
+		got := fmt.Sprintf(tt.fmt, tt.s)
+		if got != tt.want {
+			t.Errorf("fmt.Sprintf(%q, %+v): got %q, want %q", tt.fmt, tt.s, got, tt.want)
 		}
 	}
 }
