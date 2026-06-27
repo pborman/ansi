@@ -67,7 +67,7 @@ func (w *Writer) Colorize() {
 }
 
 // Write writes in to w, prefixing it with an SGR escape sequence, if
-// necessary.  It returns the total number of bytes written and any
+// necessary.  It returns the number of input bytes consumed and any
 // error encountered while writing.
 func (w *Writer) Write(in []byte) (int, error) {
 	p := w.s // primary Writer
@@ -125,7 +125,12 @@ func (w *Writer) Write(in []byte) (int, error) {
 		modes = append(append([]byte{'\033', '['}, modes...), 'm')
 		in = append(modes, in...)
 	}
-	return p.w.Write(in)
+	n, err := p.w.Write(in)
+	n -= len(modes)
+	if n < 0 {
+		n = 0
+	}
+	return n, err
 }
 
 // WriteString writes in to w, prefixing it with an SGR escape sequence, if
@@ -142,22 +147,23 @@ func (w *Writer) WriteString(in string) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	n2, err := old.Set()
-	return n + n2, err
-
+	return n, old.Set()
 }
 
 // Set writes, if necessary, the SGR escape sequence to w to set the current
 // graphics mode.
-func (w *Writer) Set() (int, error) { return w.Write(nil) }
+func (w *Writer) Set() error {
+	_, err := w.Write(nil)
+	return err
+}
 
 // ForceSet writes the SGR escape sequence to w
-func (w *Writer) ForceSet() (int, error) {
+func (w *Writer) ForceSet() error {
 	w = w.copy()
 	w.s.bg = -1
 	w.s.fg = -1
 	w.s.intensity = -1
-	return w.Write(nil)
+	return w.Set()
 }
 
 // SetColor returns a Writer that sets the drawing color to color.
