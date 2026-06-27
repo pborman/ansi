@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 )
 
 // An S contains a decoded escape sequence.  There are several types of
@@ -134,7 +135,7 @@ func ms(in ...byte) Name { return Name(in) }
 // A zero Decoder is backwards compatible with the package-level Decode
 // function.
 type Decoder struct {
-	UTF8 bool // if true, pass valid UTF8 strings through
+	UTF8 bool // if true, pass valid UTF-8 text through without treating 0x80-0x9f bytes as C1 controls
 	C0   bool // if true, split out C0 characters
 }
 
@@ -148,9 +149,10 @@ func (d Decoder) Decode(in []byte) (out []byte, s *S, err error) {
 	}
 
 	// If the first byte is not an ESC or C1 code then return everything
-	// up to the first ESC, C1, or (optionally) C0 code.
-	for x, c := range in {
-		if c == '\033' || (c&0xe0 == 0x80) {
+	// up to the first ESC, C1, valid UTF-8 code point, or (optionally) C0 code.
+	for x := 0; x < len(in); {
+		c := in[x]
+		if c == '\033' {
 			if x > 0 {
 				return in[x:], &S{Code: Name(in[:x])}, nil
 			}
@@ -162,6 +164,19 @@ func (d Decoder) Decode(in []byte) (out []byte, s *S, err error) {
 			}
 			return in[1:], &S{Code: ms(c), Type: "C0"}, nil
 		}
+		if d.UTF8 && c >= 0x80 {
+			if r, w := utf8.DecodeRune(in[x:]); r != utf8.RuneError {
+				x += w
+				continue
+			}
+		}
+		if c&0xe0 == 0x80 {
+			if x > 0 {
+				return in[x:], &S{Code: Name(in[:x])}, nil
+			}
+			goto EscapeSequence
+		}
+		x++
 	}
 
 	// If we get here the entire string has no escape sequences.
