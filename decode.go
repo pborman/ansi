@@ -7,6 +7,8 @@ package ansi
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"strings"
 )
 
@@ -56,6 +58,47 @@ func (s *S) String() string {
 	default:
 		return string(seq.Type) + strings.Join(s.Params, ";") + string(seq.Code)
 	}
+}
+
+// Format implements fmt.Formatter. %+v prints a readable form with the
+// sequence name (when known), type, parameters, and any decode error.
+// Other verbs delegate to String.
+func (s *S) Format(f fmt.State, v rune) {
+	if v == 'v' && f.Flag('+') {
+		var b strings.Builder
+		fmt.Fprintf(&b, "{")
+		nc := ""
+		if s.Code != "" {
+			seq := s.Code.S()
+			if seq != nil {
+				fmt.Fprintf(&b, "Code: %q", seq.Name)
+			} else {
+				fmt.Fprintf(&b, "Code: %q", s.Code)
+			}
+			nc = ", "
+		}
+		if s.Type != "" {
+			fmt.Fprintf(&b, "%sType: %q", nc, s.Type)
+			nc = ", "
+		}
+		if len(s.Params) > 0 {
+			fmt.Fprintf(&b, "%sParams:", nc)
+			nc = ", "
+			for i, p := range s.Params {
+				if i != 0 {
+					fmt.Fprintf(&b, ",")
+				}
+				fmt.Fprintf(&b, " %q", p)
+			}
+		}
+		if s.Error != nil {
+			fmt.Fprintf(&b, "%sError: %v", nc, s.Error)
+		}
+		fmt.Fprintf(&b, "}")
+		io.WriteString(f, b.String())
+		return
+	}
+	io.WriteString(f, s.String())
 }
 
 const (
