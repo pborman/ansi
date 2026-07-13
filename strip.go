@@ -32,13 +32,25 @@ func (e errorList) err() error {
 
 // Strip returns in with all ANSI escape sequences stripped.  An error is
 // also returned if one or more of the stripped escape sequences are invalid.
+//
+// Strip uses the default (zero) Decoder, which treats bytes 0x80-0x9f as C1
+// control introducers and is therefore not UTF-8 safe.  To strip escape
+// sequences from UTF-8 text without disturbing multibyte runes, use
+// Decoder{UTF8: true}.Strip.
 func Strip(in []byte) ([]byte, error) {
+	return Decoder{}.Strip(in)
+}
+
+// Strip returns in with all ANSI escape sequences stripped, decoding with the
+// options in d.  An error is also returned if one or more of the stripped
+// escape sequences are invalid.
+func (d Decoder) Strip(in []byte) ([]byte, error) {
 	var errs errorList
 	var out []string
 	var s *S
 	var err error
 	for len(in) > 0 {
-		in, s, err = Decode(in)
+		in, s, err = d.Decode(in)
 		if s == nil {
 			if len(in) > 0 {
 				out = append(out, string(in))
