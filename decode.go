@@ -190,6 +190,13 @@ func utf8EndsPartial(b []byte) bool {
 type Decoder struct {
 	UTF8 bool // if true, pass valid UTF-8 text through without treating 0x80-0x9f bytes as C1 controls
 	C0   bool // if true, split out C0 characters
+
+	// Partial, if true, makes Decode treat input that ends in the middle
+	// of an escape sequence as incomplete rather than an error: it returns
+	// (in, nil, nil) instead of LoneEscape, NoST, or IncompleteCSI.  This
+	// lets a caller (such as Reader) recognize that more input is needed,
+	// mirroring the behavior of UTF8 for a truncated final rune.
+	Partial bool
 }
 
 // Decode decodes the next sequence in in, returning the bytes following the
@@ -198,6 +205,7 @@ type Decoder struct {
 // UTF-8 sequence (out is then the unmodified input).  Single byte C1
 // sequences are expanded to two byte sequences.
 func (d Decoder) Decode(in []byte) (out []byte, s *S, err error) {
+	orig := in
 	if len(in) == 0 {
 		return nil, nil, nil
 	}
@@ -261,7 +269,9 @@ EscapeSequence:
 	var params []byte
 	defer func() {
 		defer func() {
-			s.Error = err
+			if s != nil {
+				s.Error = err
+			}
 		}()
 		if s == nil {
 			return
@@ -348,6 +358,9 @@ EscapeSequence:
 
 	// Lone escape
 	case len(in) == 1:
+		if d.Partial {
+			return orig, nil, nil
+		}
 		return in[1:], &S{Code: ms('\033'), Type: "C0"}, LoneEscape
 
 	// Two byte CSI
@@ -367,6 +380,12 @@ EscapeSequence:
 		}
 		var err error
 		if t < 0 {
+			// No string terminator yet.  Under Partial, more input may
+			// still supply it -- unless a start-of-string (SOS) has
+			// already appeared, which is an error regardless.
+			if d.Partial && bytes.Index(in[2:], []byte{'\033', 'X'}) < 0 {
+				return orig, nil, nil
+			}
 			t = len(in) - 2
 			err = NoST
 		}
@@ -417,6 +436,9 @@ EscapeSequence:
 	}
 
 	// this sequence prematurely terminated (no intermediate or final bytes)
+	if d.Partial {
+		return orig, nil, nil
+	}
 	if len(in) > 0 {
 		params = in
 	}
@@ -436,6 +458,9 @@ Next:
 	}
 
 	// There was nothing following the intermediate bytes
+	if d.Partial {
+		return orig, nil, nil
+	}
 	s.Code += Name(in)
 	return nil, s, IncompleteCSI
 }
